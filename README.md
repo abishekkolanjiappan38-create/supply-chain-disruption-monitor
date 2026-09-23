@@ -207,8 +207,3 @@ web/                the dashboard (index.html, app.js, config.js)
 tests/              40 offline tests
 .github/workflows/  the daily schedule
 ```
-
----
-
-*Documentation and code in this repository were written with the help of Claude Code;
-every design decision, and the findings above, are my own.*
