@@ -27,7 +27,10 @@ async function api(path, extraHeaders = {}) {
   // Old-style keys (long JWT) also need this header; new sb_... keys don't.
   if (!window.SUPABASE.key.startsWith('sb_')) headers.Authorization = 'Bearer ' + window.SUPABASE.key;
 
-  const response = await fetch(window.SUPABASE.url + '/rest/v1/' + path, {headers});
+  // cache: 'no-store' = always ask Supabase, never reuse a stored answer,
+  // otherwise Refresh could quietly show old data.
+  const response = await fetch(window.SUPABASE.url + '/rest/v1/' + path,
+                               {headers, cache: 'no-store'});
   if (!response.ok) throw new Error(`Supabase ${response.status}: ${(await response.text()).slice(0, 200)}`);
   return response;
 }
@@ -404,13 +407,30 @@ function showError(error) {
 
 async function refresh() {
   const button = document.getElementById('refresh');
-  if (button.dataset.busy === '1') return;
+  const note = document.getElementById('freshnote');
+  if (button.dataset.busy === '1') return;         // already running
   button.dataset.busy = '1';                       // spins the icon while loading
+  note.textContent = 'CHECKING…';
+  note.style.color = 'var(--ink-3)';
+
+  const signalsBefore = state.signals.length;
   try {
     await loadData();
     document.getElementById('error').hidden = true;
     renderAll();
+
+    // Say what happened, so the button visibly does something even when
+    // there is no new data. The note fades away after a few seconds.
+    const added = state.signals.length - signalsBefore;
+    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    note.style.color = 'var(--low)';
+    note.textContent = added > 0
+      ? `UPDATED ${time} · ${added} NEW`
+      : `UP TO DATE · CHECKED ${time}`;
+    clearTimeout(refresh.timer);
+    refresh.timer = setTimeout(() => { note.textContent = ''; }, 6000);
   } catch (error) {
+    note.textContent = '';
     showError(error);
   } finally {
     button.dataset.busy = '0';
