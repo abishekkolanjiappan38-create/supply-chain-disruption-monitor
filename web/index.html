@@ -109,7 +109,8 @@
     border:1px solid var(--line);border-radius:3px;padding:6px 8px;cursor:pointer}
   select:hover{border-color:var(--blue)}
 
-  .feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1px;background:var(--line)}
+  /* min(360px,100%) so a card never demands more width than the phone has */
+  .feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(360px,100%),1fr));gap:1px;background:var(--line)}
   .card{background:var(--panel);padding:24px 26px 22px;display:flex;flex-direction:column;gap:14px}
   .card:hover{background:var(--panel-2)}
   .ctop{display:flex;justify-content:space-between;align-items:center;gap:12px}
@@ -135,6 +136,20 @@
     .banner{grid-template-columns:1fr;gap:36px;padding:40px 0 34px}
     .chartgrid{grid-template-columns:1fr}
     .rlist{border-left:0;border-top:1px solid var(--line)}
+  }
+  /* phones */
+  @media (max-width:560px){
+    body{padding:0 14px 48px}
+    header.top{gap:12px}
+    .banner{padding:28px 0 26px;gap:26px}
+    .kpis{gap:14px}
+    .kpi .n{font-size:24px}
+    .phead{padding:16px 18px}
+    .card{padding:20px 18px}
+    .mapwrap{padding:6px 10px 16px}
+    .chartpad{padding:16px 6px 8px 10px}
+    .rlist{padding:16px 18px}
+    .filterbar{padding:12px 18px}
   }
 </style>
 </head>

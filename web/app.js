@@ -238,10 +238,15 @@ function drawChart() {
     .attr('x', margin.left - 10).attr('y', d => y(d) + 4).attr('text-anchor', 'end')
     .attr('fill', 'oklch(0.60 0.028 260)').attr('font-size', 11)
     .attr('font-family', 'IBM Plex Mono, monospace').text(d => d);
+  // On narrow screens the week labels would overlap, so show every other one,
+  // counted back from the most recent week (so the last week is always labelled
+  // and never sits right next to another label).
+  const labelStep = width < 560 ? 2 : 1;
   svg.append('g').selectAll('text').data(weeks).join('text')
     .attr('x', (d, i) => x(i)).attr('y', height - 10).attr('text-anchor', 'middle')
     .attr('fill', 'oklch(0.60 0.028 260)').attr('font-size', 11)
-    .attr('font-family', 'IBM Plex Mono, monospace').text(d => fmtDay(d));
+    .attr('font-family', 'IBM Plex Mono, monospace')
+    .text((d, i) => ((weeks.length - 1 - i) % labelStep === 0) ? fmtDay(d) : '');
 
   if (!series.length) {         // nothing to draw yet — say so instead of showing an empty grid
     svg.append('text').attr('x', width / 2).attr('y', height / 2).attr('text-anchor', 'middle')
