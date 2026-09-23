@@ -1,0 +1,4 @@
+# Python packages the pipeline needs. Install with:
+#   python -m pip install -r requirements.txt
+requests>=2.32,<3        # sends HTTP requests (to NewsAPI and Supabase)
+python-dotenv>=1.0,<2    # loads secrets from the .env file

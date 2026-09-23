@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Disruption Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+  :root{
+    --bg:oklch(0.985 0.005 250);
+    --panel:oklch(1 0 0);
+    --panel-2:oklch(0.972 0.008 250);
+    --line:oklch(0.90 0.014 250);
+    --ink:oklch(0.26 0.045 260);
+    --ink-2:oklch(0.47 0.035 260);
+    --ink-3:oklch(0.60 0.028 260);
+    --blue:oklch(0.52 0.17 255);
+    --blue-soft:oklch(0.93 0.035 255);
+    --low:oklch(0.58 0.13 155);
+    --med:oklch(0.70 0.145 75);
+    --high:oklch(0.55 0.20 25);
+    --neutral:oklch(0.925 0.012 250);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:Archivo,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:0 28px 80px;
+  }
+  a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid var(--line)}
+  a:hover{color:var(--ink);border-bottom-color:var(--ink-3)}
+  .wrap{max-width:1400px;margin:0 auto}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+  header.top{display:flex;align-items:baseline;justify-content:space-between;gap:24px;
+    padding:26px 0 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand h1{font-size:22px;font-weight:700;letter-spacing:-.025em;margin:0;color:var(--ink)}
+  .live{display:flex;align-items:center;gap:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--low);
+    box-shadow:0 0 0 0 oklch(0.58 0.13 155/.5);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 oklch(0.58 0.13 155/.45)}70%{box-shadow:0 0 0 7px oklch(0.58 0.13 155/0)}100%{box-shadow:0 0 0 0 oklch(0.58 0.13 155/0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--blue);border:0;border-radius:3px;
+    padding:9px 14px;cursor:pointer}
+  .btn:hover{background:oklch(0.46 0.17 255)}
+  .btn[data-busy="1"]{background:var(--ink-3);cursor:default}
+  .btn .ico{width:12px;height:12px;display:block}
+  .btn[data-busy="1"] .ico{animation:spin .9s linear infinite}
+
+  .banner{padding:56px 0 48px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:56px;align-items:end}
+  .banner h2{margin:14px 0 0;font-size:clamp(34px,4.3vw,58px);line-height:1.04;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
+  .banner h2 em{font-style:normal;color:var(--blue)}
+  .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;padding-bottom:6px}
+  .kpi .n{font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:500;letter-spacing:-.02em;display:block}
+  .kpi .l{display:block;margin-top:6px;font-size:12px;color:var(--ink-3);line-height:1.4}
+
+  section.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;margin-bottom:22px;
+    box-shadow:0 1px 2px oklch(0.26 0.045 260/.05)}
+  .phead{display:flex;justify-content:space-between;align-items:center;gap:20px;
+    padding:20px 26px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .phead h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .phead p{margin:5px 0 0;font-size:12.5px;color:var(--ink-3);max-width:60ch}
+
+  .legend{display:flex;gap:18px;align-items:center}
+  .lg{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-2)}
+  .sw{width:10px;height:10px;border-radius:2px}
+
+  #map{width:100%;display:block}
+  .mapwrap{padding:10px 18px 22px}
+  .country{stroke:oklch(1 0 0);stroke-width:.6px;transition:fill .2s}
+  .country.hit:hover{stroke:var(--ink);stroke-width:1px;cursor:pointer}
+  .tip{position:fixed;pointer-events:none;background:var(--panel);border:1px solid var(--line);
+    box-shadow:0 6px 20px oklch(0.26 0.045 260/.14);color:var(--ink);
+    border-radius:3px;padding:10px 12px;font-size:12px;opacity:0;transition:opacity .12s;z-index:20;max-width:230px}
+  .tip b{display:block;font-size:13px;margin-bottom:4px}
+
+  .chartgrid{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:0}
+  .chartpad{padding:22px 10px 12px 18px}
+  .rlist{border-left:1px solid var(--line);padding:22px 22px 22px 22px;display:flex;flex-direction:column;gap:3px}
+  .rrow{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:3px;cursor:pointer;
+    font-size:12.5px;color:var(--ink-2);background:none;border:0;text-align:left;width:100%;font-family:inherit}
+  .rrow:hover{background:var(--panel-2);color:var(--ink)}
+  .rrow[aria-pressed="false"]{opacity:.38}
+  .rrow .key{width:16px;height:2px;border-radius:2px;flex:none}
+  .rrow .val{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink)}
+
+  .filterbar{display:flex;align-items:center;gap:12px;padding:14px 26px;border-bottom:1px solid var(--line);
+    background:var(--blue-soft);font-size:12.5px;color:var(--ink)}
+  .filterbar[hidden]{display:none}
+  .filterbar .x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:3px;cursor:pointer;
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    padding:5px 9px;color:var(--ink-2)}
+  .filterbar .x:hover{border-color:var(--blue);color:var(--blue)}
+
+  /* small controls: chart grouping + disruption-type filter */
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .controls label{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-3)}
+  select{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel);
+    border:1px solid var(--line);border-radius:3px;padding:6px 8px;cursor:pointer}
+  select:hover{border-color:var(--blue)}
+
+  .feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1px;background:var(--line)}
+  .card{background:var(--panel);padding:24px 26px 22px;display:flex;flex-direction:column;gap:14px}
+  .card:hover{background:var(--panel-2)}
+  .ctop{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .sev{display:inline-flex;align-items:center;gap:7px;font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:2px}
+  .card h4{margin:0;font-size:15.5px;font-weight:500;line-height:1.35;letter-spacing:-.01em}
+  .summary{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-2);text-wrap:pretty}
+  .fields{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;padding-top:14px;border-top:1px dashed var(--line)}
+  .fk{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding-top:1px}
+  .fv{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink)}
+  .csrc{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--ink-3);gap:12px}
+
+  .empty{padding:34px 26px;color:var(--ink-3);font-size:13px;background:var(--panel)}
+  .err{margin:18px 0 0;padding:14px 18px;border:1px solid var(--high);border-radius:4px;
+    background:oklch(0.55 0.20 25/.06);color:var(--ink);font-size:13px}
+  .err[hidden]{display:none}
+
+  footer{padding:34px 0 0;border-top:1px solid var(--line);margin-top:34px;
+    display:flex;justify-content:space-between;gap:20px;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+
+  @media (max-width:900px){
+    body{padding:0 18px 60px}
+    .banner{grid-template-columns:1fr;gap:36px;padding:40px 0 34px}
+    .chartgrid{grid-template-columns:1fr}
+    .rlist{border-left:0;border-top:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Supply Chain Disruption Monitor</h1>
+    </div>
+    <div class="live">
+      <span class="dot"></span>
+      <span class="mono" id="stamp" style="font-size:11.5px;color:var(--ink-2)">LOADING…</span>
+      <button class="btn" id="refresh" style="margin-left:14px">
+        <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M14 8a6 6 0 1 1-1.8-4.3"></path><path d="M14 2v4h-4"></path>
+        </svg>Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="err" id="error" hidden></div>
+
+  <div class="banner">
+    <div>
+      <span class="eyebrow">Currently tracking</span>
+      <h2 id="headline">Loading live data…</h2>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><span class="n" id="kpi-screened">–</span><span class="l">Articles screened<br>last 30 days</span></div>
+      <div class="kpi"><span class="n" id="kpi-signals">–</span><span class="l">Flagged as real<br>disruption signals</span></div>
+      <div class="kpi"><span class="n" id="kpi-high" style="color:var(--high)">–</span><span class="l">Rated high<br>severity</span></div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="phead">
+      <div>
+        <h3>Risk by country</h3>
+        <p>Shaded by the highest severity extracted for that country in the last 30 days. Click a country to filter the feed and chart to its region.</p>
+      </div>
+      <div class="legend">
+        <span class="lg"><span class="sw" style="background:var(--low)"></span>Low</span>
+        <span class="lg"><span class="sw" style="background:var(--med)"></span>Medium</span>
+        <span class="lg"><span class="sw" style="background:var(--high)"></span>High</span>
+        <span class="lg"><span class="sw" style="background:var(--neutral)"></span>No signal</span>
+      </div>
+    </div>
+    <div class="mapwrap"><svg id="map"></svg></div>
+  </section>
+
+  <section class="panel">
+    <div class="phead">
+      <div>
+        <h3>Disruption signals over time</h3>
+        <p>Flagged articles per week. One signal = one article the model flagged as a real disruption.</p>
+      </div>
+      <div class="controls">
+        <label for="groupby">Group by</label>
+        <select id="groupby">
+          <option value="region">Region</option>
+          <option value="severity">Severity</option>
+        </select>
+        <span class="eyebrow" id="chartrange">–</span>
+      </div>
+    </div>
+    <div class="chartgrid">
+      <div class="chartpad"><svg id="chart"></svg></div>
+      <div class="rlist" id="rlist"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="phead">
+      <div>
+        <h3>Live extraction feed</h3>
+        <p>Every card is one article passed through the model. The fields below each summary are the exact values stored in the database.</p>
+      </div>
+      <div class="controls">
+        <label for="typefilter">Type</label>
+        <select id="typefilter"><option value="">All types</option></select>
+        <span class="eyebrow" id="modelname">–</span>
+      </div>
+    </div>
+    <div class="filterbar" id="filterbar" hidden>
+      <span id="filtertext"></span>
+      <button class="x" id="clearfilter">Clear filter</button>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <footer>
+    <span>Sources: NewsAPI.org · extraction via Google Gemini · stored in Supabase · refreshed daily</span>
+    <span class="mono" id="build">–</span>
+  </footer>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
